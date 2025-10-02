@@ -104,6 +104,52 @@ Launch Command:
 python -m lmms_eval --model qwen2_5_vl --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct,max_pixels=12845056,attn_implementation=sdpa --tasks mmmu,mme,mmlu_flan_n_shot_generative --batch_size 128 --limit 8 --device cuda:0
 ```
 
+## LoRA Adapter Support
+
+The evaluation framework supports automatic loading of LoRA adapter checkpoints. When you provide a LoRA checkpoint path as the `pretrained` argument, the framework automatically:
+
+1. Detects the LoRA adapter by checking for `adapter_config.json` and `adapter_model.safetensors`
+2. Extracts the base model path from `adapter_config.json` (`base_model_name_or_path` field)
+3. Loads the base model and applies the LoRA adapter on top
+
+### Usage
+
+Simply pass the LoRA checkpoint path as the `pretrained` argument:
+
+```bash
+uv run accelerate launch --config_file ./accelerate_config.yaml --num_processes=8 -m lmms_eval \
+    --model qwen2_5_vl \
+    --model_args=pretrained=path/to/lora/checkpoint,max_pixels=602112,attn_implementation=flash_attention_2 \
+    --tasks videomme \
+    --batch_size 1 \
+    --log_samples \
+    --output_path ./logs/
+```
+
+### Requirements
+
+- LoRA adapter directory must contain:
+  - `adapter_config.json` (with `base_model_name_or_path` field)
+  - `adapter_model.safetensors` or `adapter_model.bin`
+- The `peft` library must be installed: `uv add peft`
+
+### Example Directory Structure
+
+```
+checkpoint-69930/
+├── adapter_config.json         # Contains base_model_name_or_path
+├── adapter_model.safetensors   # LoRA weights
+├── tokenizer files...          # Optional: tokenizer/processor files
+└── ...
+```
+
+### Supported Models
+
+Currently, LoRA adapter auto-loading is supported for:
+- `qwen2_5_vl` (both simple and chat variants)
+
+More models can be extended to support this feature by following the same pattern.
+
 
 
 

@@ -20,6 +20,7 @@ from lmms_eval import utils
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
+from lmms_eval.models.model_utils.lora_utils import detect_and_resolve_lora_path
 from lmms_eval.models.model_utils.reasoning_model_utils import (
     parse_reasoning_model_answer,
 )
@@ -28,6 +29,12 @@ try:
     from qwen_vl_utils import process_vision_info
 except ImportError:
     eval_logger.warning("Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`")
+
+try:
+    from peft import PeftModel
+except ImportError:
+    eval_logger.warning("Failed to import peft; LoRA adapter support will be disabled. Install via `pip install peft`")
+    PeftModel = None
 
 
 @register_model("qwen2_5_vl")
@@ -82,6 +89,12 @@ class Qwen2_5_VL(lmms):
             self._device = torch.device(device)
             self.device_map = device_map if device_map else device
 
+        # Detect and resolve LoRA adapter path
+        base_model_path, lora_adapter_path = detect_and_resolve_lora_path(pretrained)
+
+        # Store pretrained path for cache resolution
+        self.pretrained = pretrained
+
         # Prepare model loading arguments
         model_kwargs = {
             "torch_dtype": "bfloat16",
@@ -92,7 +105,17 @@ class Qwen2_5_VL(lmms):
         if attn_implementation is not None:
             model_kwargs["attn_implementation"] = attn_implementation
 
-        self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(pretrained, **model_kwargs).eval()
+        # Load base model
+        self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(base_model_path, **model_kwargs).eval()
+
+        # Load LoRA adapter if detected
+        if lora_adapter_path is not None:
+            if PeftModel is None:
+                raise ImportError("peft library is required for LoRA adapter loading. Install via `pip install peft`")
+            eval_logger.info(f"Loading LoRA adapter from {lora_adapter_path}")
+            self._model = PeftModel.from_pretrained(self._model, lora_adapter_path)
+            self._model = self._model.eval()
+
         self.max_pixels = max_pixels
         self.min_pixels = min_pixels
         self.max_num_frames = max_num_frames
@@ -101,8 +124,10 @@ class Qwen2_5_VL(lmms):
             self.reasoning_prompt = reasoning_prompt.replace("\\n", "\n")
         else:
             self.reasoning_prompt = None
-        self.processor = AutoProcessor.from_pretrained(pretrained, max_pixels=max_pixels, min_pixels=min_pixels)
-        self._tokenizer = AutoTokenizer.from_pretrained(pretrained)
+
+        # Use base model path for processor/tokenizer (LoRA adapters don't have these)
+        self.processor = AutoProcessor.from_pretrained(base_model_path, max_pixels=max_pixels, min_pixels=min_pixels)
+        self._tokenizer = AutoTokenizer.from_pretrained(base_model_path)
         self.system_prompt = system_prompt
         self.interleave_visuals = interleave_visuals
 
