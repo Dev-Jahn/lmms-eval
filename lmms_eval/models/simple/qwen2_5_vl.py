@@ -44,6 +44,7 @@ class Qwen2_5_VL(lmms):
         min_pixels: int = 256 * 28 * 28,
         max_pixels: int = 1605632,
         max_num_frames: int = 32,
+        fps: Optional[float] = None,
         system_prompt: Optional[str] = "You are a helpful assistant.",
         interleave_visuals: Optional[bool] = False,
         reasoning_prompt: Optional[str] = None,
@@ -81,6 +82,7 @@ class Qwen2_5_VL(lmms):
         self.max_pixels = max_pixels
         self.min_pixels = min_pixels
         self.max_num_frames = max_num_frames
+        self.fps = fps
 
         if reasoning_prompt:
             self.reasoning_prompt = reasoning_prompt.replace("\\n", "\n")
@@ -231,19 +233,20 @@ class Qwen2_5_VL(lmms):
                 processed_visuals = []
                 if visual_list[i] is not None:
                     for visual in visual_list[i]:
-                        if isinstance(visual, str) and visual.endswith((".mp4", ".avi", ".mov")):  # Video file
-                            vr = decord.VideoReader(visual)
-                            first_frame = vr[0].asnumpy()
-                            height, width = first_frame.shape[:2]
-                            # max_pixels = height * width
-                            processed_visuals.append(
-                                {
-                                    "type": "video",
-                                    "video": visual,
-                                    "max_pixels": self.max_pixels,
-                                    "min_pixels": self.min_pixels,
-                                }
-                            )
+                        if isinstance(visual, str) and visual.endswith((".mp4", ".avi", ".mov", ".mkv", ".webm")):  # Video file
+                            # Use max_frames instead of nframes to let smart_nframes handle
+                            # frame counting with the actual video reader backend, avoiding
+                            # mismatches between decord's frame count and torchcodec/torchvision's.
+                            video_dict = {
+                                "type": "video",
+                                "video": visual,
+                                "max_pixels": self.max_pixels,
+                                "min_pixels": self.min_pixels,
+                                "max_frames": self.max_num_frames,
+                            }
+                            if self.fps is not None:
+                                video_dict["fps"] = self.fps
+                            processed_visuals.append(video_dict)
                         elif isinstance(visual, Image.Image):  # Handle both single and multiple images
                             processed_visuals.append(
                                 {
@@ -448,18 +451,17 @@ class Qwen2_5_VL(lmms):
                     processed_visuals = []
                     if visuals_list[i] is not None:
                         for visual in visuals_list[i]:
-                            if isinstance(visual, str) and visual.endswith((".mp4", ".avi", ".mov")):
-                                vr = decord.VideoReader(visual)
-                                first_frame = vr[0].asnumpy()
-                                height, width = first_frame.shape[:2]
-                                processed_visuals.append(
-                                    {
-                                        "type": "video",
-                                        "video": visual,
-                                        "max_pixels": self.max_pixels,
-                                        "min_pixels": self.min_pixels,
-                                    }
-                                )
+                            if isinstance(visual, str) and visual.endswith((".mp4", ".avi", ".mov", ".mkv", ".webm")):
+                                video_dict = {
+                                    "type": "video",
+                                    "video": visual,
+                                    "max_pixels": self.max_pixels,
+                                    "min_pixels": self.min_pixels,
+                                    "max_frames": self.max_num_frames,
+                                }
+                                if self.fps is not None:
+                                    video_dict["fps"] = self.fps
+                                processed_visuals.append(video_dict)
                             elif isinstance(visual, Image.Image):
                                 processed_visuals.append(
                                     {

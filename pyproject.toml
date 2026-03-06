@@ -43,7 +43,7 @@ dependencies = [
     "ftfy",
     "openai",
     "opencv-python-headless",
-    "av<16.0.0",
+    "av",
     "hf_transfer",
     "nltk",
     "sentencepiece",
