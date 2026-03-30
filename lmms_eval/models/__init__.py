@@ -73,6 +73,7 @@ AVAILABLE_SIMPLE_MODELS = {
     "qwen_vl": "Qwen_VL",
     "qwen2_5_omni": "Qwen2_5_Omni",
     "qwen2_5_vl": "Qwen2_5_VL",
+    "qwen2_5_vl_asta": "Qwen2_5_VL_ASTA",
     "qwen2_audio": "Qwen2_Audio",
     "qwen2_vl": "Qwen2_VL",
     "qwen3_omni": "Qwen3_Omni",
