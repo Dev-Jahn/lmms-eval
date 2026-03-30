@@ -102,6 +102,7 @@ class Qwen3_5_ToMe(lmms):
         # Import tome_generate
         try:
             from merging.tome.generate import tome_generate
+
             self._tome_generate = tome_generate
             eval_logger.info(f"ToMe loaded: r={self.tome_r}, start_layer={self.tome_start_layer}")
         except ImportError:
@@ -339,7 +340,7 @@ class Qwen3_5_ToMe(lmms):
                 use_cache=self.use_cache,
             )
 
-            generated_ids_trimmed = [out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, cont)]
+            generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
             answers = self.processor.batch_decode(
                 generated_ids_trimmed,
                 skip_special_tokens=True,
