@@ -5,8 +5,8 @@ Registers as model "qwen2_5_vl_asta". Usage:
     --model_args "pretrained=Qwen/Qwen2.5-VL-7B-Instruct,lora_path=outputs/sft_default/final_lora,spatial_window=5,max_num_frames=32"
 """
 
-import sys
 import os
+import sys
 from typing import Optional, Union
 
 import torch
@@ -60,5 +60,6 @@ class Qwen2_5_VL_ASTA(Qwen2_5_VL):
         if self._enable_asta:
             eval_logger.info(f"Setting up ASTA attention (spatial_window={self._spatial_window})")
             from training.qwen_vl.utils import setup_asta_attention
+
             setup_asta_attention(self.model, spatial_window=self._spatial_window)
             eval_logger.info("ASTA attention enabled for prefill")
